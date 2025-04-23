@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 
-with open("./data/data.p", 'rb') as data_file:
+with open("./image_data.p", 'rb') as data_file: # AH: changed filepath
     data_dict = pickle.load(data_file)
 
 feat_prep = lambda x: np.repeat(np.array(x).reshape(-1, 2048), 5, axis=0)
