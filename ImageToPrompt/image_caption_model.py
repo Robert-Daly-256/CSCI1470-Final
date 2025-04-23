@@ -19,7 +19,7 @@ class PositionalEncoding(nn.Module):
         return x + self.pe[:, :x.size(1)].to(x.device)
 
 # encoder class, uses resnet --> ask Dave if that's okay 
-# using CNN since good at extracting spatial features from images 
+# using CNN since good at extracting spatial features from images --> might also consider using a transformer but idk 
 class CNNEncoder(nn.Module):
     def __init__(self, model_dim):
         super().__init__()
@@ -46,22 +46,22 @@ class TransformerDecoder(nn.Module):
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers)
         self.fc_out = nn.Linear(d_model, vocab_size)
 
-    def forward(self, tgt, memory, tgt_mask=None, tgt_key_padding_mask=None):
-        tgt_emb = self.embedding(tgt) * (memory.size(-1) ** 0.5)
-        tgt_emb = self.pos_encoding(tgt_emb)
-        tgt_emb = tgt_emb.transpose(0, 1)  # (T, N, E)
+    def forward(self, target, memory, target_mask=None, target_key_padding_mask=None):
+        target_embedding = self.embedding(target) * (memory.size(-1) ** 0.5)
+        target_embedding = self.pos_encoding(target_embedding)
+        target_embedding = target_embedding.transpose(0, 1)  # (T, N, E)
         memory = memory.unsqueeze(0)  # (1, N, E)
         output = self.transformer_decoder(
-            tgt_emb, memory, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_key_padding_mask
+            target_embedding, memory, tgt_mask=target_mask, tgt_key_padding_mask=target_key_padding_mask
         )
         return self.fc_out(output.transpose(0, 1))  # (N, T, vocab_size)
 
 
 class ImageCaptioningModel(nn.Module):
-    def __init__(self, vocab_size, d_model=512, nhead=8, num_layers=6, dim_feedforward=2048, pad_idx=0):
+    def __init__(self, vocab_size, model_dim=512, nhead=8, num_layers=6, dim_feedforward=2048, pad_idx=0):
         super().__init__()
         self.encoder = CNNEncoder(d_model)
-        self.decoder = TransformerDecoder(vocab_size, d_model, nhead, num_layers, dim_feedforward, pad_idx)
+        self.decoder = TransformerDecoder(vocab_size, model_dim, nhead, num_layers, dim_feedforward, pad_idx)
 
     def forward(self, images, captions, tgt_mask=None, tgt_key_padding_mask=None):
         memory = self.encoder(images)  # (batch_size, d_model)
