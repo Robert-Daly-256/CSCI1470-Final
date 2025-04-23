@@ -6,7 +6,7 @@ import torchvision.models as models
 class PositionalEncoding(nn.Module):
     def __init__(self, model_dim, max_len=5000):
         super().__init__()
-        positional_encoding = torch.zeros(max_len, d_model)
+        positional_encoding = torch.zeros(max_len, model_dim)
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp(
             torch.arange(0, model_dim, 2) * (-torch.log(torch.tensor(10000.0)) / model_dim)
@@ -60,10 +60,10 @@ class TransformerDecoder(nn.Module):
 class ImageCaptioningModel(nn.Module):
     def __init__(self, vocab_size, model_dim=512, nhead=8, num_layers=6, dim_feedforward=2048, pad_idx=0):
         super().__init__()
-        self.encoder = CNNEncoder(d_model)
+        self.encoder = CNNEncoder(model_dim)
         self.decoder = TransformerDecoder(vocab_size, model_dim, nhead, num_layers, dim_feedforward, pad_idx)
 
     def forward(self, images, captions, tgt_mask=None, tgt_key_padding_mask=None):
-        memory = self.encoder(images)  # (batch_size, d_model)
+        memory = self.encoder(images)  # (batch_size, model_dim)
         output = self.decoder(captions, memory, tgt_mask, tgt_key_padding_mask)
         return output
