@@ -6,7 +6,7 @@ class ImageCaptionModel(keras.Model):
 
     def __init__(self, decoder, **kwargs):
         super().__init__(**kwargs)
-        self.decoder = decoder
+        self.decoder = decoder 
 
     
     def call(self, encoded_images, captions):

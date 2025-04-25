@@ -5,6 +5,7 @@ import pickle
 import tensorflow as tf
 from typing import Optional
 from types import SimpleNamespace
+from encoder import build_cnn_encoder
 
 import keras
 from image_caption_model import ImageCaptionModel, accuracy_function, loss_function
@@ -51,6 +52,14 @@ def main(args):
     test_captions   = np.array(data_dict['test_captions'])
     train_img_feats = feat_prep(data_dict['train_image_features'])
     test_img_feats  = feat_prep(data_dict['test_image_features'])
+
+    train_images    = np.repeat(data_dict['train_images'], 5, axis=0)
+    test_images     = np.repeat(data_dict['test_images'], 5, axis=0)
+    encoder = build_cnn_encoder(output_dim=args.hidden_size)
+    train_img_feats = encoder(tf.convert_to_tensor(train_images), training=False).numpy()
+    test_img_feats = encoder(tf.convert_to_tensor(test_images), training=False).numpy()
+
+    
     # train_images    = img_prep(data_dict['train_images'])
     # test_images     = img_prep(data_dict['test_images'])
     word2idx        = data_dict['word2idx']
