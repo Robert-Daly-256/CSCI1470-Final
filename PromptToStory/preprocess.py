@@ -71,7 +71,7 @@ class Vocab:
         # Takes an id to it's corresponding word
         return self.id2word[id]
     
-    def encode_sentence(self, sentence: list[str], max_story_length = 1000) -> list[int]:
+    def encode_sentence(self, sentence: list[str], max_story_length = 512) -> list[int]:
         # Encodes a story (with padding) clipping to max_length
         encoded_sentence = [self.start_index]
         for word in sentence[:max_story_length - 2]:
@@ -91,7 +91,7 @@ class Vocab:
         return decoded_sentence
             
     
-    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 1000):
+    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 512):
         # Saves a preprocessed dataset to desired location, formated as expected by torch
         preprocessed_dataset = []
         with open(input_filepath, 'r', encoding='utf-8') as input:
@@ -129,18 +129,18 @@ if __name__ == "__main__":
     # Create Vocabs
     vocab_prompt = Vocab()
     vocab_prompt.create_vocab([X_train, X_val])
-    with open("../vocab_prompt.pkl", "wb") as vocab_save:
-        pickle.dump(vocab_prompt, vocab_save)
+    with open("./data/preprocessed/vocab_prompt.pkl", "wb") as vocab_save:
+         pickle.dump(vocab_prompt, vocab_save)
     vocab_story = Vocab()
     vocab_story.create_vocab([Y_train, Y_val])
-    with open("../vocab_story.pkl", "wb") as vocab_save:
-        pickle.dump(vocab_story, vocab_save)
+    with open("./data/preprocessed/vocab_story.pkl", "wb") as vocab_save:
+         pickle.dump(vocab_story, vocab_save)
 
     # Preprocess all files
     X_train = vocab_prompt.preprocess_dataset(X_train, X_train_save)
     Y_train = vocab_story.preprocess_dataset(Y_train, Y_train_save)
     X_test = vocab_prompt.preprocess_dataset(X_test, X_test_save)
-    Y_train = vocab_story.preprocess_dataset(Y_test, Y_test_save)
+    Y_test = vocab_story.preprocess_dataset(Y_test, Y_test_save)
     X_val = vocab_prompt.preprocess_dataset(X_val, X_val_save)
     Y_val = vocab_story.preprocess_dataset(Y_val, Y_val_save)
 
