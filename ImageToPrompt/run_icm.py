@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import keras
 from image_caption_model import ImageCaptionModel, accuracy_function, loss_function
-from decoder import TransformerDecoder, RNNDecoder
+from decoder import TransformerDecoder
 import transformer
 
 # copied from HW4 assignment 
@@ -61,10 +61,6 @@ def main(args):
     if args.task in ('train', 'both'):
         ##############################################################################
         ## Model Construction
-        decoder_class = {
-            'rnn'           : RNNDecoder,
-            'transformer'   : TransformerDecoder
-        }[args.type]
 
         decoder = TransformerDecoder(
             vocab_size  = len(word2idx), 
@@ -115,7 +111,6 @@ def load_model(args):
             TransformerBlock        = transformer.TransformerBlock,
             PositionalEncoding      = transformer.PositionalEncoding,
             TransformerDecoder      = TransformerDecoder,
-            RNNDecoder              = RNNDecoder,
             ImageCaptionModel       = ImageCaptionModel
         ),
     )
