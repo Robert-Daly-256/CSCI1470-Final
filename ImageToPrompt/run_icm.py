@@ -53,12 +53,15 @@ def main(args):
     train_img_feats = feat_prep(data_dict['train_image_features'])
     test_img_feats  = feat_prep(data_dict['test_image_features'])
 
-    train_images    = np.repeat(data_dict['train_images'], 5, axis=0)
-    test_images     = np.repeat(data_dict['test_images'], 5, axis=0)
+    # train_images    = np.repeat(data_dict['train_images'], 5, axis=0)
+    # test_images     = np.repeat(data_dict['test_images'], 5, axis=0)
+    train_images = data_dict['train_images']
+    test_images = data_dict['test_images']
     encoder = build_cnn_encoder(output_dim=args.hidden_size)
-    train_img_feats = encoder(tf.convert_to_tensor(train_images), training=False).numpy()
-    test_img_feats = encoder(tf.convert_to_tensor(test_images), training=False).numpy()
-
+    # train_img_feats = encoder(tf.convert_to_tensor(train_images), training=False).numpy()
+    # test_img_feats = encoder(tf.convert_to_tensor(test_images), training=False).numpy()
+    train_img_feats = np.repeat(encoder(tf.convert_to_tensor(train_images), training=False).numpy(), 5, axis=0)
+    test_img_feats = np.repeat(encoder(tf.convert_to_tensor(test_images), training=False).numpy(), 5, axis=0)
     
     # train_images    = img_prep(data_dict['train_images'])
     # test_images     = img_prep(data_dict['test_images'])
