@@ -45,7 +45,7 @@ class Vocab:
                 sentence = line.strip().lower().split()
                 self.counter.update(sentence)
     
-    def create_vocab(self, filepaths: list[str], max_vocab_size=1000000, min_word_frequency=50):
+    def create_vocab(self, filepaths: list[str], max_vocab_size=100000, min_word_frequency=50):
         # Creates the final vocab, based on the list of filepaths
         for file in filepaths:
             self.update_word_counts(file)
@@ -71,7 +71,7 @@ class Vocab:
         # Takes an id to it's corresponding word
         return self.id2word[id]
     
-    def encode_sentence(self, sentence: list[str], max_story_length = 512) -> list[int]:
+    def encode_sentence(self, sentence: list[str], max_story_length = 256) -> list[int]:
         # Encodes a story (with padding) clipping to max_length
         encoded_sentence = [self.start_index]
         for word in sentence[:max_story_length - 2]:
@@ -91,7 +91,7 @@ class Vocab:
         return decoded_sentence
             
     
-    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 512):
+    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 256):
         # Saves a preprocessed dataset to desired location, formated as expected by torch
         preprocessed_dataset = []
         with open(input_filepath, 'r', encoding='utf-8') as input:

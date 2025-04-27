@@ -1,6 +1,7 @@
 import os, argparse, pickle
 import torch, torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+from torch.cuda.amp import autocast, GradScaler
 from preprocess import Vocab
 from story_generation_model import TransformerStoryGenerator
 
@@ -19,19 +20,29 @@ def load_split(d, split):
     tgt = torch.load(f"{d}/Y_{split}.pt")
     return TensorDataset(src, tgt)
 
-def train_epoch(m, loader, opt, crit, dev):
+def train_epoch(m, loader, opt, crit, dev, scaler):
     m.train(); total_loss = 0; total_correct = 0; total_tokens = 0
     for src, tgt in loader:
         src, tgt = src.to(dev), tgt.to(dev)
         inp, lbl = tgt[:, :-1], tgt[:, 1:]
+
         opt.zero_grad()
-        logits = m(src, inp)  # forward
-        loss = crit(logits.view(-1, logits.size(-1)), lbl.reshape(-1))
-        loss.backward(); opt.step()
+
+        # Use autocast for mixed precision
+        with autocast():
+            logits = m(src, inp)  # forward
+            loss = crit(logits.view(-1, logits.size(-1)), lbl.reshape(-1))
+
+        # Scale the loss and backpropagate
+        scaler.scale(loss).backward()
+
+        # Update the model parameters
+        scaler.step(opt)
+        scaler.update()
 
         total_loss += loss.item()
 
-        # Calculate accuracy: compare predicted tokens to ground truth
+        # Calculate accuracy
         pred = logits.argmax(dim=-1)  # Predicted token indices
         correct = (pred == lbl).sum().item()  # Count how many predictions are correct
         total_correct += correct
@@ -82,10 +93,12 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
 
+    scaler = GradScaler()
+
     best_val_loss = float('inf')
     for epoch in range(1, args.epochs + 1):
         # Train
-        tr_loss, tr_acc = train_epoch(model, train_ld, optimizer, criterion, dev)
+        tr_loss, tr_acc = train_epoch(model, train_ld, optimizer, criterion, dev, scaler)
         # Evaluate
         val_loss, val_acc = eval_epoch(model, val_ld, criterion, dev)
 
