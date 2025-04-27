@@ -21,7 +21,8 @@ class TransformerDecoder(keras.Model):
         self.english_embedding = tf.keras.layers.Embedding(vocab_size, hidden_size)
 
         # Define positional encoding layer for language:
-        self.positional_encoding = PositionalEncoding(vocab_size, hidden_size, window_size)
+        # self.positional_encoding = PositionalEncoding(vocab_size, hidden_size, window_size)
+        self.simple_encoding = SimpleEncoder(hidden_size)
 
         # Define transformer decoder layer:
         self.transformer_decoder = TransformerBlock(hidden_size, multiheaded=True)
@@ -45,7 +46,9 @@ class TransformerDecoder(keras.Model):
         # english_embeddings = self.english_embedding(captions)
 
         # 3) Add positional embeddings to the word embeddings
-        english_embeddings = self.positional_encoding(captions)
+        # english_embeddings = self.positional_encoding(captions)
+        english_embeddings = self.english_embedding(captions)
+        english_embeddings = self.simple_encoding(english_embeddings)
         
         # 4) Pass the english embeddings and the image sequences, to the decoder
         decoder_output = self.transformer_decoder(english_embeddings, image_features)
@@ -63,3 +66,20 @@ class TransformerDecoder(keras.Model):
     @classmethod
     def from_config(cls, config):
         return cls(**config)    
+    
+class SimpleEncoder(keras.layers.Layer):
+    def __init__(self, hidden_size, num_heads=4, ff_dim=256):
+        super().__init__()
+        self.attention = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=hidden_size)
+        self.ffn = keras.Sequential([
+            tf.keras.layers.Dense(ff_dim, activation="relu"),
+            tf.keras.layers.Dense(hidden_size),
+        ])
+        self.layernorm1 = tf.keras.layers.LayerNormalization()
+        self.layernorm2 = tf.keras.layers.LayerNormalization()
+
+    def call(self, x):
+        attn_output = self.attention(x, x)
+        x = self.layernorm1(x + attn_output)
+        ffn_output = self.ffn(x)
+        return self.layernorm2(x + ffn_output)
