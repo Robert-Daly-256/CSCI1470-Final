@@ -19,8 +19,15 @@ def parse_args():
     return p.parse_args()
 
 def load_split(d, split):
-    src = torch.load(f"{d}/X_{split}.pt")
-    tgt = torch.load(f"{d}/Y_{split}.pt")
+    src, tgt = torch.load(f"{d}/X_{split}.pt")  # Load both tensors directly from files
+
+    # Print dtype and shape of the tensors
+    print(f"{split} src dtype: {src.dtype}, shape: {src.shape}")
+    print(f"{split} tgt dtype: {tgt.dtype}, shape: {tgt.shape}")
+
+    # Ensure that the tensors have the same length
+    assert src.size(0) == tgt.size(0), f"Size mismatch: {src.size(0)} != {tgt.size(0)}"
+
     return TensorDataset(src, tgt)
 
 def train_epoch(m, loader, opt, crit, dev, scaler, total_batches, save_dir, epoch):

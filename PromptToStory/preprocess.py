@@ -154,7 +154,11 @@ if __name__ == "__main__":
 
     print(vocab_prompt.decode_sentence(X_train[0]))
     print(vocab_story.decode_sentence(Y_train[0]))
-    print(len(X_train))
-    print(len(Y_train))
+    # After preprocessing your datasets, add these checks
+    print(f"Size of X_train: {len(X_train)}")
+    print(f"Size of Y_train: {len(Y_train)}")
+
+    # Ensure they are the same length before proceeding
+    assert len(X_train) == len(Y_train), f"Size mismatch: X_train has {len(X_train)} but Y_train has {len(Y_train)}"
 
 
