@@ -2,7 +2,6 @@ import torch
 from collections import Counter
 import pickle
 
-
 class Vocab:
     # The vocabulary used by our small language model, 
     # including special words like denotations for the start and end of
@@ -89,30 +88,37 @@ class Vocab:
             if x != self.padding_index:
                 decoded_sentence.append(self.id_to_word(x))
         return decoded_sentence
-            
     
-    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 512):
-        # Saves a preprocessed dataset to desired location, formated as expected by torch
-        preprocessed_dataset = []
-        with open(input_filepath, 'r', encoding='utf-8') as input:
-            for line in input:
-                story = line.strip().lower().split()
-
-                # Skip stories that exceed max_story_length
-                if len(story) > max_story_length:
-                    continue  # Drop this story
-
-                encoded_sentence = self.encode_sentence(story, max_story_length=max_story_length)
-                preprocessed_dataset.append(torch.tensor(encoded_sentence, dtype=torch.long))
+    def preprocess_dataset(self, input_filepath: str, target_filepath: str, output_filepath: str, max_story_length=512):
+        preprocessed_input = []
+        preprocessed_target = []
         
-        dataset = torch.stack(preprocessed_dataset)
-        torch.save(dataset, output_filepath)
-        return dataset
+        with open(input_filepath, 'r', encoding='utf-8') as input_file, open(target_filepath, 'r', encoding='utf-8') as target_file:
+            for input_line, target_line in zip(input_file, target_file):
+                input_story = input_line.strip().lower().split()
+                target_story = target_line.strip().lower().split()
+
+                # Skip stories if either the source or target exceeds max_story_length
+                if len(input_story) > max_story_length or len(target_story) > max_story_length:
+                    continue  # Drop this pair
+                
+                # Process and encode both source and target stories
+                encoded_input = self.encode_sentence(input_story, max_story_length=max_story_length)
+                encoded_target = self.encode_sentence(target_story, max_story_length=max_story_length)
+                
+                preprocessed_input.append(torch.tensor(encoded_input, dtype=torch.long))
+                preprocessed_target.append(torch.tensor(encoded_target, dtype=torch.long))
+        
+        dataset_input = torch.stack(preprocessed_input)
+        dataset_target = torch.stack(preprocessed_target)
+        
+        # Save the preprocessed data to the specified output file
+        torch.save((dataset_input, dataset_target), output_filepath)
+        
+        return dataset_input, dataset_target
     
     def __len__(self):
         return len(self.words)
-
-
 
 if __name__ == "__main__":
     # Data Locations | May need to be editted
@@ -142,12 +148,13 @@ if __name__ == "__main__":
          pickle.dump(vocab_story, vocab_save)
 
     # Preprocess all files
-    X_train = vocab_prompt.preprocess_dataset(X_train, X_train_save)
-    Y_train = vocab_story.preprocess_dataset(Y_train, Y_train_save)
-    X_test = vocab_prompt.preprocess_dataset(X_test, X_test_save)
-    Y_test = vocab_story.preprocess_dataset(Y_test, Y_test_save)
-    X_val = vocab_prompt.preprocess_dataset(X_val, X_val_save)
-    Y_val = vocab_story.preprocess_dataset(Y_val, Y_val_save)
+    X_train, Y_train = vocab_prompt.preprocess_dataset(X_train, Y_train, X_train_save, max_story_length=512)
+    X_test, Y_test = vocab_prompt.preprocess_dataset(X_test, Y_test, X_test_save, max_story_length=512)
+    X_val, Y_val = vocab_prompt.preprocess_dataset(X_val, Y_val, X_val_save, max_story_length=512)
 
     print(vocab_prompt.decode_sentence(X_train[0]))
     print(vocab_story.decode_sentence(Y_train[0]))
+    print(len(X_train))
+    print(len(Y_train))
+
+
