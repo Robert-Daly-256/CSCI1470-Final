@@ -15,8 +15,8 @@ class PositionalEncoding(nn.Module):
         return x + self.pe[:,:x.size(1)]
 
 class TransformerStoryGenerator(nn.Module):
-    def __init__(self, vocab_size, d_model=512, nhead=8, 
-                 num_layers=6, dim_ff=2048, dropout=0.1, max_len=512):
+    def __init__(self, vocab_size, d_model=256, nhead=4, 
+                 num_layers=2, dim_ff=512, dropout=0.1, max_len=256):
         super().__init__()
         self.embed = nn.Embedding(vocab_size, d_model)
         self.pos_enc = PositionalEncoding(d_model, max_len)
@@ -42,7 +42,7 @@ class TransformerStoryGenerator(nn.Module):
         out = self.transformer.decoder(
             tgt_emb.transpose(0, 1),
             memory,
-            tgt_mask=nn.Transformer.generate_square_subsequent_mask(tgt_emb.size(1)).to(tgt.device),
+	    tgt_mask=nn.Transformer.generate_square_subsequent_mask(tgt_emb.size(1)).to(tgt.device),
             tgt_key_padding_mask=tgt_key_padding_mask
         )
         
