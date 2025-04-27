@@ -60,7 +60,9 @@ def main(args):
     encoder = build_cnn_encoder(output_dim=args.hidden_size)
     # train_img_feats = encoder(tf.convert_to_tensor(train_images), training=False).numpy()
     # test_img_feats = encoder(tf.convert_to_tensor(test_images), training=False).numpy()
-    train_img_feats = np.repeat(encoder(tf.convert_to_tensor(train_images), training=False).numpy(), 5, axis=0)
+    # train_img_feats = np.repeat(encoder(tf.convert_to_tensor(train_images), training=False).numpy(), 5, axis=0)
+    train_img_feats = encoder(tf.convert_to_tensor(np.repeat(train_images, 5, axis=0)), training=False).numpy()
+
     test_img_feats = np.repeat(encoder(tf.convert_to_tensor(test_images), training=False).numpy(), 5, axis=0)
     
     # train_images    = img_prep(data_dict['train_images'])
