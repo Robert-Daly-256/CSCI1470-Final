@@ -6,6 +6,7 @@ import tensorflow as tf
 from typing import Optional
 from types import SimpleNamespace
 from encoder import build_cnn_encoder
+from tensorflow.keras.layers import TFSMLayer
 
 import keras
 from image_caption_model import ImageCaptionModel, accuracy_function, loss_function
@@ -84,6 +85,9 @@ def main(args):
         if args.task != 'both': 
             ## Load model for testing. Note that architecture needs to be consistent
             model = load_model(args)
+            # model = tf.keras.Sequential([
+            # TFSMLayer(args.chkpt_path, call_endpoint='serving_default')
+            #     ])
         if not (args.task == 'both' and args.check_valid):
             test_model(model, test_captions, test_img_feats, word2idx['<pad>'], args)
 

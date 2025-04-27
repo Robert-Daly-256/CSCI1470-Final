@@ -20,6 +20,14 @@ class TransformerDecoder(keras.Model):
         self.image_embedding = tf.keras.layers.Dense(hidden_size, activation="relu")
         self.english_embedding = tf.keras.layers.Embedding(vocab_size, hidden_size)
 
+        # learnable positional encoding
+        self.positional_embeddings = self.add_weight(
+            name="positional_embeddings",
+            shape=(window_size, hidden_size),
+            initializer="random_normal",
+        )
+        self.dropout = tf.keras.layers.Dropout(0.1)
+
         # Define positional encoding layer for language:
         # self.positional_encoding = PositionalEncoding(vocab_size, hidden_size, window_size)
         self.simple_encoding = SimpleEncoder(hidden_size)
@@ -41,18 +49,28 @@ class TransformerDecoder(keras.Model):
         # 1) Embed the encoded images into a vector of the correct dimension
         image_features = self.image_embedding(encoded_images)
         image_features = tf.expand_dims(image_features, axis=1)
-        
-        # 2) Pass the captions through your word embedding layer
-        # english_embeddings = self.english_embedding(captions)
 
         # 3) Add positional embeddings to the word embeddings
-        # english_embeddings = self.positional_encoding(captions)
         english_embeddings = self.english_embedding(captions)
+
+        # with simple encoder
         english_embeddings = self.simple_encoding(english_embeddings)
-        
-        # 4) Pass the english embeddings and the image sequences, to the decoder
         decoder_output = self.transformer_decoder(english_embeddings, image_features)
         
+        # with learnable positional encoding
+        # positions = tf.range(start=0, limit=self.window_size, delta=1)
+        # pos_embeds = tf.nn.embedding_lookup(self.positional_embeddings, positions)
+        # word_embeddings = english_embeddings + pos_embeds
+        # x = self.dropout(word_embeddings, training=True)
+        # decoder_output = self.transformer_decoder(x, image_features)
+
+        # with both learnable positional encoder and simple encoder
+        # positions = tf.range(start=0, limit=self.window_size, delta=1)
+        # pos_embeds = tf.nn.embedding_lookup(self.positional_embeddings, positions)
+        # word_embeddings = english_embeddings + pos_embeds  
+        # word_embeddings = self.simple_encoding(word_embeddings)
+        # decoder_output = self.transformer_decoder(word_embeddings, image_features)
+
         # 5) Apply dense layer(s) to the decoder out to generate **logits**
         logits = self.classification_layer(decoder_output)
         
@@ -71,7 +89,7 @@ class SimpleEncoder(keras.layers.Layer):
     def __init__(self, hidden_size, num_heads=4, ff_dim=256):
         super().__init__()
         self.attention = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=hidden_size)
-        self.ffn = keras.Sequential([
+        self.feedforward = keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation="relu"),
             tf.keras.layers.Dense(hidden_size),
         ])
@@ -81,5 +99,5 @@ class SimpleEncoder(keras.layers.Layer):
     def call(self, x):
         attn_output = self.attention(x, x)
         x = self.layernorm1(x + attn_output)
-        ffn_output = self.ffn(x)
+        ffn_output = self.feedforward(x)
         return self.layernorm2(x + ffn_output)
