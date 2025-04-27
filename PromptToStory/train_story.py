@@ -1,5 +1,8 @@
-import os, argparse, pickle
-import torch, torch.nn as nn
+import os
+import argparse
+import pickle
+import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from torch.cuda.amp import autocast, GradScaler
 from preprocess import Vocab
@@ -20,9 +23,13 @@ def load_split(d, split):
     tgt = torch.load(f"{d}/Y_{split}.pt")
     return TensorDataset(src, tgt)
 
-def train_epoch(m, loader, opt, crit, dev, scaler):
-    m.train(); total_loss = 0; total_correct = 0; total_tokens = 0
-    for src, tgt in loader:
+def train_epoch(m, loader, opt, crit, dev, scaler, total_batches, save_dir, epoch):
+    m.train()
+    total_loss = 0
+    total_correct = 0
+    total_tokens = 0
+
+    for batch_idx, (src, tgt) in enumerate(loader):
         src, tgt = src.to(dev), tgt.to(dev)
         inp, lbl = tgt[:, :-1], tgt[:, 1:]
 
@@ -42,6 +49,18 @@ def train_epoch(m, loader, opt, crit, dev, scaler):
 
         total_loss += loss.item()
 
+        # Print progress every 1%
+        if batch_idx % (total_batches // 100) == 0:
+            percent_complete = (batch_idx / total_batches) * 100
+            print(f"Epoch {epoch} progress: {percent_complete:.2f}%")
+
+        # Save checkpoint every 5%
+        if batch_idx % (total_batches // 20) == 0:  # Save every 5%
+            percent_complete = (batch_idx / total_batches) * 100
+            print(f"Saving model checkpoint at {percent_complete:.2f}% of epoch {epoch}")
+            ckpt = os.path.join(save_dir, f"epoch{epoch}_progress_{percent_complete:.0f}.pt")
+            torch.save(m.state_dict(), ckpt)
+
         # Calculate accuracy
         pred = logits.argmax(dim=-1)  # Predicted token indices
         correct = (pred == lbl).sum().item()  # Count how many predictions are correct
@@ -53,7 +72,11 @@ def train_epoch(m, loader, opt, crit, dev, scaler):
     return avg_loss, avg_accuracy
 
 def eval_epoch(m, loader, crit, dev):
-    m.eval(); total_loss = 0; total_correct = 0; total_tokens = 0
+    m.eval()
+    total_loss = 0
+    total_correct = 0
+    total_tokens = 0
+
     with torch.no_grad():
         for src, tgt in loader:
             src, tgt = src.to(dev), tgt.to(dev)
@@ -96,15 +119,17 @@ def main():
     scaler = GradScaler()
 
     best_val_loss = float('inf')
+    total_batches = len(train_ld)
+    
     for epoch in range(1, args.epochs + 1):
         # Train
-        tr_loss, tr_acc = train_epoch(model, train_ld, optimizer, criterion, dev, scaler)
+        tr_loss, tr_acc = train_epoch(model, train_ld, optimizer, criterion, dev, scaler, total_batches, args.save_dir, epoch)
         # Evaluate
         val_loss, val_acc = eval_epoch(model, val_ld, criterion, dev)
 
         print(f"[Epoch {epoch}] train_loss={tr_loss:.4f} train_acc={tr_acc*100:.2f}%  val_loss={val_loss:.4f} val_acc={val_acc*100:.2f}%")
 
-        # Save checkpoint
+        # Save checkpoint after epoch
         ckpt = os.path.join(args.save_dir, f"epoch{epoch}.pt")
         torch.save(model.state_dict(), ckpt)
         if val_loss < best_val_loss:

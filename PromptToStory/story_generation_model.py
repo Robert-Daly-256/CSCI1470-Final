@@ -16,7 +16,7 @@ class PositionalEncoding(nn.Module):
 
 class TransformerStoryGenerator(nn.Module):
     def __init__(self, vocab_size, d_model=256, nhead=4, 
-                 num_layers=2, dim_ff=512, dropout=0.1, max_len=256):
+                 num_layers=2, dim_ff=512, dropout=0.1, max_len=512):
         super().__init__()
         self.embed = nn.Embedding(vocab_size, d_model)
         self.pos_enc = PositionalEncoding(d_model, max_len)

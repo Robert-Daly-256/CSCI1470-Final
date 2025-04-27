@@ -71,7 +71,7 @@ class Vocab:
         # Takes an id to it's corresponding word
         return self.id2word[id]
     
-    def encode_sentence(self, sentence: list[str], max_story_length = 256) -> list[int]:
+    def encode_sentence(self, sentence: list[str], max_story_length = 512) -> list[int]:
         # Encodes a story (with padding) clipping to max_length
         encoded_sentence = [self.start_index]
         for word in sentence[:max_story_length - 2]:
@@ -91,12 +91,17 @@ class Vocab:
         return decoded_sentence
             
     
-    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 256):
+    def preprocess_dataset(self, input_filepath: str, output_filepath: str, max_story_length = 512):
         # Saves a preprocessed dataset to desired location, formated as expected by torch
         preprocessed_dataset = []
         with open(input_filepath, 'r', encoding='utf-8') as input:
             for line in input:
                 story = line.strip().lower().split()
+
+                # Skip stories that exceed max_story_length
+                if len(story) > max_story_length:
+                    continue  # Drop this story
+
                 encoded_sentence = self.encode_sentence(story, max_story_length=max_story_length)
                 preprocessed_dataset.append(torch.tensor(encoded_sentence, dtype=torch.long))
         
