@@ -2,6 +2,7 @@ import torch
 from collections import Counter
 import pickle
 
+
 class Vocab:
     # The vocabulary used by our small language model, 
     # including special words like denotations for the start and end of
@@ -44,7 +45,7 @@ class Vocab:
                 sentence = line.strip().lower().split()
                 self.counter.update(sentence)
     
-    def create_vocab(self, filepaths: list[str], max_vocab_size=100000, min_word_frequency=50):
+    def create_vocab(self, filepaths: list[str], max_vocab_size=1000000, min_word_frequency=50):
         # Creates the final vocab, based on the list of filepaths
         for file in filepaths:
             self.update_word_counts(file)
@@ -70,7 +71,7 @@ class Vocab:
         # Takes an id to it's corresponding word
         return self.id2word[id]
     
-    def encode_sentence(self, sentence: list[str], max_story_length = 512) -> list[int]:
+    def encode_sentence(self, sentence: list[str], max_story_length = 1024) -> list[int]:
         # Encodes a story (with padding) clipping to max_length
         encoded_sentence = [self.start_index]
         for word in sentence[:max_story_length - 2]:
@@ -88,37 +89,32 @@ class Vocab:
             if x != self.padding_index:
                 decoded_sentence.append(self.id_to_word(x))
         return decoded_sentence
+            
     
-    def preprocess_dataset(self, input_filepath: str, target_filepath: str, output_filepath: str, max_story_length=512):
-        preprocessed_input = []
-        preprocessed_target = []
+    def preprocess_dataset(self, prompts_filepath: str, prompts_output_filepath: str, stories_filepath: str, stories_output_filepath: str, max_story_length = 1024):
+        # Saves a preprocessed dataset to desired location, formated as expected by torch
+        preprocessed_prompts = []
+        preprocessed_stories = []
+        with open(prompts_filepath, 'r', encoding='utf-8') as prompts, open(stories_filepath, 'r', encoding='utf-8') as stories:
+            for prompt, story in zip(prompts, stories):
+                prompt = prompt.strip().lower().split()
+                story = story.strip().lower().split()
+                if len(prompt) <= max_story_length - 2 and len(story) <= max_story_length - 2:
+                    encoded_prompt = self.encode_sentence(prompt, max_story_length=max_story_length)
+                    encoded_story = self.encode_sentence(story, max_story_length=max_story_length)
+                    preprocessed_prompts.append(torch.tensor(encoded_prompt, dtype=torch.long))
+                    preprocessed_stories.append(torch.tensor(encoded_story, dtype=torch.long))
         
-        with open(input_filepath, 'r', encoding='utf-8') as input_file, open(target_filepath, 'r', encoding='utf-8') as target_file:
-            for input_line, target_line in zip(input_file, target_file):
-                input_story = input_line.strip().lower().split()
-                target_story = target_line.strip().lower().split()
-
-                # Skip stories if either the source or target exceeds max_story_length
-                if len(input_story) > max_story_length or len(target_story) > max_story_length:
-                    continue  # Drop this pair
-                
-                # Process and encode both source and target stories
-                encoded_input = self.encode_sentence(input_story, max_story_length=max_story_length)
-                encoded_target = self.encode_sentence(target_story, max_story_length=max_story_length)
-                
-                preprocessed_input.append(torch.tensor(encoded_input, dtype=torch.long))
-                preprocessed_target.append(torch.tensor(encoded_target, dtype=torch.long))
-        
-        dataset_input = torch.stack(preprocessed_input)
-        dataset_target = torch.stack(preprocessed_target)
-        
-        # Save the preprocessed data to the specified output file
-        torch.save((dataset_input, dataset_target), output_filepath)
-        
-        return dataset_input, dataset_target
+        prompts_dataset = torch.stack(preprocessed_prompts)
+        stories_dataset = torch.stack(preprocessed_stories)
+        torch.save(prompts_dataset, prompts_output_filepath)
+        torch.save(stories_dataset, stories_output_filepath)
+        return (prompts_dataset, stories_dataset)
     
     def __len__(self):
         return len(self.words)
+
+
 
 if __name__ == "__main__":
     # Data Locations | May need to be editted
@@ -138,27 +134,18 @@ if __name__ == "__main__":
     Y_val_save = "./data/preprocessed/Y_val.pt"
 
     # Create Vocabs
-    vocab_prompt = Vocab()
-    vocab_prompt.create_vocab([X_train, X_val])
-    with open("./data/preprocessed/vocab_prompt.pkl", "wb") as vocab_save:
-         pickle.dump(vocab_prompt, vocab_save)
-    vocab_story = Vocab()
-    vocab_story.create_vocab([Y_train, Y_val])
-    with open("./data/preprocessed/vocab_story.pkl", "wb") as vocab_save:
-         pickle.dump(vocab_story, vocab_save)
+    vocab = Vocab()
+    vocab.create_vocab([X_train, X_val, Y_train, Y_val])
+    with open("../vocab.pkl", "wb") as vocab_save:
+        pickle.dump(vocab, vocab_save)
 
     # Preprocess all files
-    X_train, Y_train = vocab_prompt.preprocess_dataset(X_train, Y_train, X_train_save, max_story_length=512)
-    X_test, Y_test = vocab_prompt.preprocess_dataset(X_test, Y_test, X_test_save, max_story_length=512)
-    X_val, Y_val = vocab_prompt.preprocess_dataset(X_val, Y_val, X_val_save, max_story_length=512)
+    X_train, Y_train = vocab.preprocess_dataset(X_train, X_train_save, Y_train, Y_train_save)
+    X_test, Y_test = vocab.preprocess_dataset(X_test, X_test_save, Y_test, Y_test_save)
+    X_val, Y_val = vocab.preprocess_dataset(X_val, X_val_save, Y_val, Y_val_save)
 
-    print(vocab_prompt.decode_sentence(X_train[0]))
-    print(vocab_story.decode_sentence(Y_train[0]))
-    # After preprocessing your datasets, add these checks
-    print(f"Size of X_train: {len(X_train)}")
-    print(f"Size of Y_train: {len(Y_train)}")
-
-    # Ensure they are the same length before proceeding
-    assert len(X_train) == len(Y_train), f"Size mismatch: X_train has {len(X_train)} but Y_train has {len(Y_train)}"
-
-
+    print(vocab.decode_sentence(X_train[0]))
+    print(vocab.decode_sentence(Y_train[0]))
+    print("\n\n")
+    print(len(vocab))
+    print(X_train.size())
