@@ -159,3 +159,65 @@ class LSTMDecoder(keras.Model):
     def from_config(cls, config):
         return cls(**config)
 
+class TransformerDecoder2(keras.Model):
+    def __init__(self, vocab_size, hidden_size, window_size, **kwargs):
+        super().__init__(**kwargs)
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.max_seq_len = window_size
+
+        # following this: https://github.com/nirajankarki5/Flickr30k-Image-Caption-Generator-Using-Deep-Learning/blob/master/model_build.ipynb
+        self.embedding = keras.layers.Embedding(input_dim=vocab_size, output_dim=50)
+        
+        # caption dropout
+        self.dropout = keras.layers.Dropout(0.3)
+
+        # dense image feature layer
+        self.image_dense = keras.layers.Dense(256, activation='relu')
+
+        # LSTM layer for caption embeddings
+        self.lstm = keras.layers.LSTM(256)
+
+        # adding layer to combine image features and captions
+        self.add_layer = keras.layers.Add()
+
+        # dense layer output
+        self.dense_out = keras.layers.Dense(256, activation='relu')
+        self.classifier = keras.layers.Dense(vocab_size)
+
+    def call(self, image_features, captions, training=False):
+        # image_features, captions = inputs
+
+        # dropout image features
+        image_features = self.dropout(image_features, training=training)
+        img_feat = self.image_dense(image_features)  
+        img_feat = tf.expand_dims(img_feat, 1)    
+
+        # embed the captions 
+        caption_embed = self.embedding(captions)
+        caption_embed = self.dropout(caption_embed, training=training)
+
+        # lstm
+        caption_lstm = self.lstm(caption_embed) 
+
+        # add image feats to caption feats
+        merged = self.add_layer([img_feat, caption_lstm])  
+
+        # pass thru dense
+        x = self.dense_out(merged)
+        logits = self.classifier(x)
+
+        return logits
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "vocab_size": self.vocab_size,
+            "hidden_size": self.hidden_size,
+            "max_seq_len": self.max_seq_len
+        }
+        return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
