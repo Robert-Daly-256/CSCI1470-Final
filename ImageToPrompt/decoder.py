@@ -102,3 +102,60 @@ class SimpleEncoder(keras.layers.Layer):
         x = self.layernorm1(x + attn_output)
         ffn_output = self.feedforward(x)
         return self.layernorm2(x + ffn_output)
+
+@keras.saving.register_keras_serializable(package="MyLayers")
+class LSTMDecoder(keras.Model):
+    def __init__(self, vocab_size, embedding_dim=50, lstm_units=256, dropout_rate=0.3, **kwargs):
+        super().__init__(**kwargs)
+        self.vocab_size = vocab_size
+        self.embedding_dim = embedding_dim
+        self.lstm_units = lstm_units
+        self.dropout_rate = dropout_rate
+
+        # layers
+        self.image_embedding = tf.keras.layers.Dense(lstm_units, activation='relu')
+        self.embedding = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, mask_zero=True)
+        self.dropout = tf.keras.layers.Dropout(dropout_rate)
+        self.lstm = tf.keras.layers.LSTM(lstm_units)
+        self.decoder_dense1 = tf.keras.layers.Dense(lstm_units, activation='relu')
+        self.decoder_dense2 = tf.keras.layers.Dense(vocab_size, activation='softmax')
+
+    def call(self, encoded_images, captions):
+        """
+        :param encoded_images: Tensor of shape [batch_size, 2048]
+        :param captions: Tensor of shape [batch_size, window_size - 1]
+        :return: Logits of shape [batch_size, window_size - 1, vocab_size]
+        """
+        # Embed image features to hidden size
+        img_feat = self.image_embedding(encoded_images)  # [batch_size, hidden_size]
+        img_feat = tf.expand_dims(img_feat, 1)  # [batch_size, 1, hidden_size]
+        img_feat = tf.repeat(img_feat, repeats=captions.shape[1], axis=1)  # [batch_size, seq_len, hidden_size]
+
+        # Embed and process caption input
+        cap_embed = self.embedding(captions)  # [batch_size, seq_len, embed_dim]
+        cap_embed = self.dropout(cap_embed)
+        cap_lstm = self.lstm(cap_embed)  # [batch_size, seq_len, hidden_size]
+
+        # Add image features to caption features at each timestep
+        merged = tf.keras.layers.Add()([img_feat, cap_lstm])  # [batch_size, seq_len, hidden_size]
+
+        # Dense decoding
+        x = self.decoder_dense1(merged)
+        logits = self.decoder_dense2(x)  # [batch_size, seq_len, vocab_size]
+
+        return logits
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "vocab_size": self.vocab_size,
+            "embedding_dim": self.embedding_dim,
+            "lstm_units": self.lstm_units,
+            "dropout_rate": self.dropout_rate
+        }
+        return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+

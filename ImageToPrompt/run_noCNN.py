@@ -10,7 +10,7 @@ from tensorflow.keras.layers import TFSMLayer
 
 import keras
 from image_caption_model import ImageCaptionModel, accuracy_function, loss_function
-from decoder import TransformerDecoder
+from decoder import TransformerDecoder, LSTMDecoder
 import transformer
 
 # copied from HW4 assignment 
@@ -68,6 +68,8 @@ def main(args):
             hidden_size = args.hidden_size, 
             window_size = args.window_size
         )
+
+        # decoder = LSTMDecoder(vocab_size=len(word2idx))
         
         model = ImageCaptionModel(decoder)
         compile_model(model, args)
