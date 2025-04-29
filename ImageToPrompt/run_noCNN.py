@@ -62,20 +62,23 @@ def main(args):
     if args.task in ('train', 'both'):
         ##############################################################################
         ## Model Construction
-
-        # decoder = TransformerDecoder(
-        #     vocab_size  = len(word2idx), 
-        #     hidden_size = args.hidden_size, 
-        #     window_size = args.window_size
-        # )
-
-        # decoder = LSTMDecoder(vocab_size=len(word2idx))
-
-        decoder = TransformerDecoder2(
+        vocab_size  = len(word2idx), 
+        hidden_size = args.hidden_size, 
+        window_size = args.window_size
+        
+        decoder = TransformerDecoder(
             vocab_size  = len(word2idx), 
             hidden_size = args.hidden_size, 
             window_size = args.window_size
         )
+
+        # decoder = LSTMDecoder(vocab_size=len(word2idx))
+
+        # decoder = TransformerDecoder2(
+        #     vocab_size  = len(word2idx), 
+        #     hidden_size = args.hidden_size, 
+        #     window_size = args.window_size
+        # )
         
         model = ImageCaptionModel(decoder)
         compile_model(model, args)

@@ -20,6 +20,9 @@ class TransformerDecoder(keras.Model):
         self.image_embedding = tf.keras.layers.Dense(hidden_size, activation="relu")
         self.english_embedding = tf.keras.layers.Embedding(vocab_size, hidden_size)
 
+        self.lstm = tf.keras.layers.LSTM(hidden_size, return_sequences=True)
+
+
         # learnable positional encoding
         self.positional_embeddings = self.add_weight(
             name="positional_embeddings",
@@ -53,9 +56,17 @@ class TransformerDecoder(keras.Model):
         # 3) Add positional embeddings to the word embeddings
         english_embeddings = self.english_embedding(captions)
 
+        # new
+        lstm_out = self.lstm(english_embeddings)
+        # positions = tf.range(start=0, limit=self.window_size, delta=1)
+        # pos_embeds = tf.nn.embedding_lookup(self.positional_embeddings, positions)
+        # word_embeddings = lstm_out + pos_embeds
+        # word_embeddings = self.dropout(word_embeddings, training=True)
+
+        encoded = self.simple_encoding(lstm_out)
+
         # with simple encoder
-        english_embeddings = self.simple_encoding(english_embeddings)
-        decoder_output = self.transformer_decoder(english_embeddings, image_features)
+        decoder_output = self.transformer_decoder(encoded, image_features)
         
         # with learnable positional encoding
         # positions = tf.range(start=0, limit=self.window_size, delta=1)
