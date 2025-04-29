@@ -84,7 +84,8 @@ class TransformerDecoder(keras.Model):
     @classmethod
     def from_config(cls, config):
         return cls(**config)    
-    
+
+@keras.saving.register_keras_serializable(package="MyLayers")
 class SimpleEncoder(keras.layers.Layer):
     def __init__(self, hidden_size, num_heads=4, ff_dim=256):
         super().__init__()

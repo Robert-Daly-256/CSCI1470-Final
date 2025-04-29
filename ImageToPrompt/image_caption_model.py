@@ -117,11 +117,78 @@ class ImageCaptionModel(keras.Model):
         }
         return {**base_config, **config}
 
+    # def get_build_config(self):
+    #     # base_config = super().get_config()
+    #     config = {
+    #         "decoder": tf.keras.utils.serialize_keras_object(self.decoder),
+    #     }
+    #     return config
+
     @classmethod
     def from_config(cls, config):
         decoder_config = config.pop("decoder")
         decoder = tf.keras.utils.deserialize_keras_object(decoder_config)
+        # print("i did it")
         return cls(decoder, **config)
+    
+    # def build_from_config(self, config):
+    #     decoder_config = config.pop("decoder")
+    #     self.decoder = tf.keras.utils.deserialize_keras_object(decoder_config)
+
+    #     if not self.built:
+    #         self.build(input_shape=(None, 2048))
+    
+    def predict_caption(self, image_feature, word2idx, max_length=20, start_token='<start>', stop_token='<end>'):
+        """
+            image_feature: Tensor of shape (1, 2048) or similar
+            vocab: vocab object from .pkl file
+            max_length: maximum caption length
+            start_token: special start token
+            stop_token: special stop token
+
+        outputs the generated caption
+        """
+        # convert start and stop tokens to their IDs in the vocab
+        start_token_id = word2idx.get(start_token, None)
+        stop_token_id = word2idx.get(stop_token, None)
+
+        idx2word = {idx: word for word, idx in word2idx.items()}
+
+        if start_token_id is None:
+            raise ValueError(f"'{start_token}' token not found in vocab")
+        if stop_token_id is None:
+            raise ValueError(f"'{stop_token}' token not found in vocab")
+        
+        caption_tokens = [start_token_id]
+
+        # optional dummy print to check vocab
+        dummy_token_ids = list(idx2word.keys())[:5]  # take 5 token IDs
+        dummy_caption_words = [idx2word.get(id, '') for id in dummy_token_ids]
+        dummy_caption = ' '.join(dummy_caption_words)
+        print("Dummy caption:", dummy_caption)
+
+        for _ in range(max_length):
+            input_caption = tf.expand_dims(caption_tokens, axis=0)  # (1, current_length)
+            
+            preds = self.decoder(image_feature, input_caption)  # (1, current_length, vocab_size)
+            # print("Decoder output preds:", preds)
+            # print("Preds shape:", preds.shape)
+            preds = preds[:, -1, :]  # last token's prediction 
+
+            # choose the highest-probability token
+            next_token_id = tf.argmax(preds, axis=-1).numpy()[0]  
+            
+            if next_token_id == stop_token_id:
+                break
+            
+            caption_tokens.append(next_token_id)
+
+        # convert token IDs back to strings/words using the vocab dictionary
+        # caption_words = [word2idx.get(id, '') for id in caption_tokens[1:]] 
+        caption_words = [idx2word.get(id, '') for id in caption_tokens[1:]]  # skip start token
+        caption = ' '.join(caption_words)
+        
+        return caption
 
 
 def accuracy_function(prbs, labels, mask):
@@ -156,76 +223,3 @@ def loss_function(prbs, labels, mask):
     scce = tf.keras.losses.sparse_categorical_crossentropy(masked_labs, masked_prbs, from_logits=True)
     loss = tf.reduce_sum(scce)
     return loss
-
-# import torch
-# import torch.nn as nn
-
-# class PositionalEncoding(nn.Module):
-#     def __init__(self, model_dim, max_len=5000):
-#         super().__init__()
-#         positional_encoding = torch.zeros(max_len, model_dim)
-#         position = torch.arange(0, max_len).unsqueeze(1)
-#         div_term = torch.exp(
-#             torch.arange(0, model_dim, 2) * (-torch.log(torch.tensor(10000.0)) / model_dim)
-#         )
-#         positional_encoding[:, 0::2] = torch.sin(position * div_term)
-#         positional_encoding[:, 1::2] = torch.cos(position * div_term)
-#         self.pe = positional_encoding.unsqueeze(0)  # (1, max_len, d_model)
-
-#     def forward(self, x):
-#         return x + self.pe[:, :x.size(1)].to(x.device)
-
-# # encoder class --> ask Dave if that's okay 
-# # using CNN since good at extracting spatial features from images --> might also consider using a transformer but idk 
-# class CNNEncoder(nn.Module):
-#     def __init__(self, model_dim):
-#         super().__init__()
-#         self.cnn = nn.Sequential(
-#             nn.Conv2d(3, 64, kernel_size=5, stride=2, padding=2),
-#             nn.BatchNorm2d(64),
-#             nn.ReLU(),
-#             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
-#             nn.BatchNorm2d(128),
-#             nn.ReLU(),
-#             nn.AdaptiveAvgPool2d((1, 1)),
-#         )
-#         self.linear = nn.Linear(128, model_dim)
-#         self.batch_norm = nn.BatchNorm1d(model_dim, momentum=0.01)
-
-#     def forward(self, images):
-#         features = self.cnn(images).view(images.size(0), -1)
-#         features = self.linear(features)
-#         return self.batch_norm(features)
-
-# # transformer decoder
-# # chose transformer because good at sequential info 
-# class TransformerDecoder(nn.Module):
-#     def __init__(self, vocab_size, d_model, nhead, num_layers, dim_feedforward, pad_idx):
-#         super().__init__()
-#         self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=pad_idx)
-#         self.pos_encoding = PositionalEncoding(d_model)
-#         decoder_layer = nn.TransformerDecoderLayer(d_model, nhead, dim_feedforward)
-#         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers)
-#         self.fc_out = nn.Linear(d_model, vocab_size)
-
-#     def forward(self, target, memory, target_mask=None, target_key_padding_mask=None):
-#         target_embedding = self.embedding(target) * (memory.size(-1) ** 0.5)
-#         target_embedding = self.pos_encoding(target_embedding)
-#         target_embedding = target_embedding.transpose(0, 1)  # (T, N, E)
-#         memory = memory.unsqueeze(0)  # (1, N, E)
-#         output = self.transformer_decoder(
-#             target_embedding, memory, tgt_mask=target_mask, tgt_key_padding_mask=target_key_padding_mask
-#         )
-#         return self.fc_out(output.transpose(0, 1))  # (N, T, vocab_size)
-
-
-# class ImageCaptioningModel(nn.Module):
-#     def __init__(self, vocab_size, model_dim=512, nhead=8, num_layers=6, dim_feedforward=2048, pad_idx=0):
-#         super().__init__()
-#         self.encoder = CNNEncoder(model_dim)
-#         self.decoder = TransformerDecoder(vocab_size, model_dim, nhead, num_layers, dim_feedforward, pad_idx)
-
-#     def forward(self, images, captions, tgt_mask=None, tgt_key_padding_mask=None):
-#         memory = self.encoder(images)  # (batch_size, model_dim)
-#         output = self.decoder(captions, memory, tgt_mask, tgt_key_padding_mask)
-#         return output
