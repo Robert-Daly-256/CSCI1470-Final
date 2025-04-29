@@ -161,11 +161,11 @@ class ImageCaptionModel(keras.Model):
         
         caption_tokens = [start_token_id]
 
-        # optional dummy print to check vocab
-        dummy_token_ids = list(idx2word.keys())[:5]  # take 5 token IDs
-        dummy_caption_words = [idx2word.get(id, '') for id in dummy_token_ids]
-        dummy_caption = ' '.join(dummy_caption_words)
-        print("Dummy caption:", dummy_caption)
+        # dummy print to check vocab
+        # dummy_token_ids = list(idx2word.keys())[:5]  # take 5 token IDs
+        # dummy_caption_words = [idx2word.get(id, '') for id in dummy_token_ids]
+        # dummy_caption = ' '.join(dummy_caption_words)
+        # print("Dummy caption:", dummy_caption)
 
         for _ in range(max_length):
             input_caption = tf.expand_dims(caption_tokens, axis=0)  # (1, current_length)
