@@ -32,7 +32,7 @@ def show_image_with_caption_below(img_array, caption):
 
 def load_vocab(vocab_path):
      # load vocab
-    with open('data2.p', 'rb') as pickle_file:
+    with open(vocab_path, 'rb') as pickle_file:
         data = pickle.load(pickle_file)
     word2idx = data['word2idx']
     idx2word = data['idx2word']
@@ -53,18 +53,23 @@ if __name__ == "__main__":
     print("Feature Vector Shape:", feature.shape)
 
     word2idx, idx2word = load_vocab('data2.p')
+    print(len(word2idx))
 
     caption_model = ImageCaptionModel()
     caption_model.build((1, 2048))
     # caption_model = tf.keras.models.load_model(model_path)
+    print("here")
 
     caption_model.load_weights('image_caption_model.weights.h5')
     # print(model.summary())
     # print(type(model))
     # predicted_caption = caption_model.predict_caption(feature, vocab)
+    print("here")
     predicted_caption = generate_caption(caption_model, feature, word2idx, idx2word, 20)
+    # greedy_caption = greedy_search(caption_model, feature, word2idx, idx2word, 20)
 
     print("Generated Caption:", predicted_caption)
+    # print("Greedy Capttion:", greedy_caption)
 
     # show image
     show_image_with_caption_below(img_array, predicted_caption)

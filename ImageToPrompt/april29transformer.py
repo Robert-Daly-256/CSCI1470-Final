@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, Model, optimizers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import pickle
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 class TransformerEncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
@@ -116,7 +117,7 @@ def positional_encoding(position, d_model):
 
 class ImageCaptionModel(Model):
     def __init__(self, 
-                 vocab_size=639,
+                 vocab_size=639, # change for data_vocab10
                  d_model=256, 
                  num_heads=8, 
                  dff=1024,
@@ -311,6 +312,30 @@ def generate_caption(model, image_features, word2idx, idx2word, max_length=50):
     
     return ' '.join(caption)
 
+# def greedy_search(model, image_features, word2idx, idx2word, max_length=20):
+#     in_text = '<start>'
+#     for i in range(max_length):
+#         # make text a sequence of indices
+#         sequence = [word2idx[s] for s in in_text.split(" ") if s in word2idx]
+#         sequence = pad_sequences([sequence], maxlen=max_length, padding='post')
+        
+#         # predict the next word
+#         y_pred = model.predict([image_features, sequence], verbose=0)
+#         print(y_pred)
+#         y_pred = np.argmax(y_pred[0])
+        
+#         # make index back into a workd
+#         word = idx2word[y_pred]
+#         in_text += ' ' + word
+        
+#         # If the word is the end token, stop the loop
+#         if word == '<end>':
+#             break
+    
+#     final_caption = in_text.split()
+#     final_caption = final_caption[1:-1]  # rmv start and end tokens
+#     return final_caption
+
 # parse cmnd line 
 class Args:
     def __init__(self):
@@ -319,7 +344,7 @@ class Args:
         self.epochs = 20
         self.early_stopping = True
         self.patience = 5
-        self.chkpt_path = 'image_caption_model.weights.h5'
+        self.chkpt_path = 'image_caption_model2.weights.h5'
         self.save_format = 'h5'
 
 if __name__ == "__main__":
