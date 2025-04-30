@@ -7,7 +7,7 @@ import pickle
 class TransformerEncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
         super(TransformerEncoderLayer, self).__init__()
-
+        self.d_model = d_model
         self.mha = layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
         self.ffn1 = layers.Dense(dff, activation='relu')
         self.ffn2 = layers.Dense(d_model)
@@ -17,6 +17,10 @@ class TransformerEncoderLayer(layers.Layer):
 
         self.dropout1 = layers.Dropout(rate)
         self.dropout2 = layers.Dropout(rate)
+
+        self.bilstm = tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(self.d_model // 2, return_sequences=True)
+        )
 
     def call(self, x, training=True): 
         # please work 
@@ -30,7 +34,11 @@ class TransformerEncoderLayer(layers.Layer):
         ffn_output = self.dropout2(ffn_output, training=training)
 
         # output normalized
-        return self.layernorm2(out1 + ffn_output)
+        trans_enc_out = self.layernorm2(out1 + ffn_output)
+
+        lstm_out = self.bilstm(trans_enc_out)
+
+        return lstm_out
 
 class TransformerDecoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
@@ -113,7 +121,7 @@ class ImageCaptionModel(Model):
                  num_heads=8, 
                  dff=1024,
                  max_position_encoding=20,
-                 num_layers=4,
+                 num_layers=2, # changed from 4
                  dropout_rate=0.1):
         super(ImageCaptionModel, self).__init__()
         
@@ -277,7 +285,7 @@ def generate_caption(model, image_features, word2idx, idx2word, max_length=50):
     caption = []
     
     # encode
-    enc_output = model.encode_image(tf.expand_dims(image_features, 0), training=False)
+    enc_output = model.encode_image(image_features, training=False)
     
     for i in range(max_length):
         # get a prediction!
@@ -306,8 +314,8 @@ def generate_caption(model, image_features, word2idx, idx2word, max_length=50):
 # parse cmnd line 
 class Args:
     def __init__(self):
-        self.learning_rate = 0.001
-        self.batch_size = 64
+        self.learning_rate = 0.0001 # adjusted from 0.001
+        self.batch_size = 32
         self.epochs = 20
         self.early_stopping = True
         self.patience = 5
@@ -317,7 +325,15 @@ class Args:
 if __name__ == "__main__":
     args = Args()
 
-    with open('/Users/annieherring/Documents/s2025/dl/CSCI1470-Final/ImageToPrompt/data2.p', 'rb') as data_file:
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(e)
+
+    with open('data2.p', 'rb') as data_file:
         data_dict = pickle.load(data_file)
 
     feat_prep = lambda x: np.repeat(np.array(x).reshape(-1, 2048), 5, axis=0)
