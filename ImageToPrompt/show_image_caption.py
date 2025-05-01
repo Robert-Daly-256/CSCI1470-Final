@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # caption_model = tf.keras.models.load_model(model_path)
     print("here")
 
-    caption_model.load_weights('image_caption_model.weights.h5')
+    caption_model.load_weights('icm_apr30.weights.h5')
     # print(model.summary())
     # print(type(model))
     # predicted_caption = caption_model.predict_caption(feature, vocab)

@@ -37,9 +37,9 @@ class TransformerEncoderLayer(layers.Layer):
         # output normalized
         trans_enc_out = self.layernorm2(out1 + ffn_output)
 
-        lstm_out = self.bilstm(trans_enc_out)
+        # lstm_out = self.bilstm(trans_enc_out)
 
-        return lstm_out
+        return trans_enc_out
 
 class TransformerDecoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
@@ -105,10 +105,10 @@ def positional_encoding(position, d_model):
                            np.arange(d_model)[np.newaxis, :],
                            d_model)
     
-    # apply sin to even indices in the array; 2i
+    # apply sin to even indices in the array- 2i
     angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
     
-    # apply cos to odd indices in the array; 2i+1
+    # apply cos to odd indices in the array- 2i+1
     angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
     
     pos_encoding = angle_rads[np.newaxis, ...]
@@ -222,7 +222,7 @@ def train_model(model, train_captions, train_img_feats, pad_token, args, valid=N
     decoder_input = train_captions[:, :-1]  # rm last token
     decoder_target = train_captions[:, 1:]  # rm first token
     
-    # Create validation data if provided
+    # make validation data if provided
     validation_data = None
     if valid is not None:
         valid_captions, valid_img_feats = valid
@@ -344,7 +344,7 @@ class Args:
         self.epochs = 20
         self.early_stopping = True
         self.patience = 5
-        self.chkpt_path = 'icm_apr30.weights.h5'
+        self.chkpt_path = 'icm_nolstm.weights.h5'
         self.save_format = 'h5'
 
 if __name__ == "__main__":
